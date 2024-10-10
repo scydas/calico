@@ -1,3 +1,17 @@
+// Copyright (c) 2024 Tigera, Inc. All rights reserved.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package outputs
 
 import (
@@ -21,7 +35,6 @@ import (
 
 const (
 	releaseNoteRequiredLabel = "release-note-required"
-	releaseNotesFolderName   = "release-notes"
 	closedState              = issueState("closed")
 	openState                = issueState("open")
 )
@@ -175,7 +188,7 @@ func outputReleaseNotes(issueDataList []*ReleaseNoteIssueData, outputFilePath st
 
 // ReleaseNotes generates release notes for a milestone
 // and outputs it to a file in <outputDir>/release-notes/<milestone>-release-notes.md
-func ReleaseNotes(owner, githubToken, repoRootDir, outputDir string) (string, error) {
+func ReleaseNotes(owner, githubToken, repoRootDir, outputDir string, ver version.Version) (string, error) {
 	if githubToken == "" {
 		return "", fmt.Errorf("github token not set, set GITHUB_TOKEN environment variable")
 	}
@@ -183,13 +196,8 @@ func ReleaseNotes(owner, githubToken, repoRootDir, outputDir string) (string, er
 		logrus.Warn("No directory is set, using current directory")
 		outputDir = "."
 	}
-	gitVersion, err := utils.GitVersion(repoRootDir)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to get git version")
-		return "", err
-	}
-	releaseVersion := version.Version(gitVersion)
-	milestone := releaseVersion.Milestone()
+
+	milestone := ver.Milestone()
 	githubClient := github.NewTokenClient(context.Background(), githubToken)
 	releaseNoteDataList := []*ReleaseNoteIssueData{}
 	opts := &github.MilestoneListOptions{
@@ -223,7 +231,7 @@ func ReleaseNotes(owner, githubToken, repoRootDir, outputDir string) (string, er
 		logrus.WithField("milestone", milestone).Error("No issues found for milestone")
 		return "", fmt.Errorf("no issues found for milestone %s", milestone)
 	}
-	releaseNoteFilePath := filepath.Join(outputDir, releaseNotesFolderName, fmt.Sprintf("%s-release-notes.md", releaseVersion.FormattedString()))
+	releaseNoteFilePath := filepath.Join(outputDir, fmt.Sprintf("%s-release-notes.md", ver.FormattedString()))
 	if err := outputReleaseNotes(releaseNoteDataList, releaseNoteFilePath); err != nil {
 		logrus.WithError(err).Error("Failed to output release notes")
 		return "", err
